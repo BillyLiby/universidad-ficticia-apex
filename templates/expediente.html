@@ -1,6 +1,15 @@
-{% extends "base.html" %}{% block content %}
-{% if student %}<h3>Expediente: {{ student.first_name }} {{ student.last_name }} ({{ student.student_id }})</h3>
-<table><tr><th>Curso</th><th>Nota</th></tr>
-{% for g in grades %}<tr><td>{{ g.course }}</td><td>{{ g.grade }}</td></tr>{% endfor %}</table>
-{% else %}<p>Estudiante no encontrado.</p>{% endif %}
+{% extends "base.html" %}{% block title %}Expediente{% endblock %}{% block content %}
+{% if student %}
+<div class="profile">
+  <div class="avatar" aria-hidden="true">{{ student.first_name[:1] }}{{ student.last_name[:1] }}</div>
+  <div><h1>{{ student.first_name }} {{ student.last_name }}</h1><p>Identificador {{ student.student_id }}</p></div>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Curso</th><th class="num">Nota</th></tr></thead>
+  <tbody>{% for g in grades %}<tr><td>{{ g.course }}</td><td class="num">{{ g.grade }}</td></tr>
+  {% else %}<tr><td colspan="2" class="empty">Este expediente aún no tiene calificaciones.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<div class="panel empty">Estudiante no encontrado. <a href="/search">Volver a la búsqueda</a></div>
+{% endif %}
 {% endblock %}

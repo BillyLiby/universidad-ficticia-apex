@@ -1,8 +1,18 @@
-{% extends "base.html" %}{% block content %}
-<h3>Buscar estudiantes</h3>
-<form method="get"><input name="q" value="{{ q }}"><button>Buscar</button></form>
-{% if q %}<p>Resultados para: {{ q }}</p>{% endif %}
-<table><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th></th></tr>
-{% for s in results %}<tr><td>{{ s.student_id }}</td><td>{{ s.first_name }}</td><td>{{ s.last_name }}</td>
-<td><a href="/expediente/{{ s.student_id }}">Ver expediente</a></td></tr>{% endfor %}</table>
+{% extends "base.html" %}{% block title %}Estudiantes{% endblock %}{% block content %}
+<h1>Estudiantes</h1>
+<p class="lead">Busca por nombre, apellido o identificador de 7 dígitos.</p>
+<form method="get" class="searchbar" role="search">
+  <input name="q" value="{{ q }}" aria-label="Buscar estudiantes" placeholder="Ej. Ana o 2026001">
+  <button>Buscar</button>
+</form>
+{% if q %}<p class="hint" style="margin:-8px 0 16px">Resultados para: {{ q }}</p>{% endif %}
+{% if results %}
+<div class="table-wrap"><table>
+  <thead><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th></th></tr></thead>
+  <tbody>
+  {% for s in results %}<tr><td>{{ s.student_id }}</td><td>{{ s.first_name }}</td><td>{{ s.last_name }}</td>
+    <td class="num"><a href="/expediente/{{ s.student_id }}">Ver expediente</a></td></tr>{% endfor %}
+  </tbody></table></div>
+{% elif q %}<div class="panel empty">No se encontraron estudiantes con esa búsqueda.</div>
+{% endif %}
 {% endblock %}

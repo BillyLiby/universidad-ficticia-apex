@@ -1,3 +1,9 @@
-{% extends "base.html" %}{% block content %}
-<p>Bienvenido. Usa el menú para buscar estudiantes, ver expedientes, comentar o generar reportes.</p>
+{% extends "base.html" %}{% block title %}Inicio{% endblock %}{% block content %}
+<h1>Bienvenido</h1>
+<p class="lead">Consulta expedientes, publica comentarios y genera reportes académicos.</p>
+<ul class="links">
+  <li><a href="/search"><strong>Buscar estudiantes</strong><small>Encuentra un estudiante y abre su expediente académico.</small></a></li>
+  <li><a href="/comments"><strong>Comentarios</strong><small>Lee y publica comentarios del portal.</small></a></li>
+  <li><a href="/report"><strong>Reporte de calificaciones</strong><small>Descarga las calificaciones en formato CSV.</small></a></li>
+</ul>
 {% endblock %}

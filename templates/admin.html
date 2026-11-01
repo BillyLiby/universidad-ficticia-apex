@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Administración{% endblock %}{% block content %}
+<h1>Administración</h1>
+<p class="lead">Registra estudiantes y calificaciones.</p>
+<h2>Agregar estudiante</h2>
+<form method="post" class="panel">
+  <input type="hidden" name="form" value="student">
+  <div class="field"><label for="s_id">Identificador</label><input id="s_id" name="student_id"><div class="hint">7 dígitos.</div></div>
+  <div class="field"><label for="s_fn">Nombre</label><input id="s_fn" name="first_name"></div>
+  <div class="field"><label for="s_ln">Apellido</label><input id="s_ln" name="last_name"></div>
+  <div class="field"><label for="s_em">Correo</label><input id="s_em" name="email"></div>
+  <button>Agregar estudiante</button>
+</form>
+<h2>Agregar calificación</h2>
+<form method="post" class="panel">
+  <input type="hidden" name="form" value="grade">
+  <div class="field"><label for="g_id">Identificador del estudiante</label><input id="g_id" name="student_id"></div>
+  <div class="field"><label for="g_c">Curso</label><input id="g_c" name="course"></div>
+  <div class="field"><label for="g_n">Nota</label><input id="g_n" name="grade"><div class="hint">Entre 0 y 100.</div></div>
+  <button>Agregar calificación</button>
+</form>
+{% endblock %}

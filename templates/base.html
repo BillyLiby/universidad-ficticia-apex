@@ -1,12 +1,28 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><title>Portal Universitario (Laboratorio)</title>
-<style>body{font-family:Arial;max-width:800px;margin:30px auto}nav a{margin-right:12px}
-table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px 8px}.msg{color:#a00}</style></head>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Portal{% endblock %} · Universidad Ficticia Apex</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
 <body>
-<h2>Portal Universitario (Laboratorio)</h2>
-{% if session.user %}<nav><a href="/">Inicio</a><a href="/search">Buscar estudiantes</a>
-<a href="/comments">Comentarios</a><a href="/report">Reporte CSV</a>
-<a href="/logout">Salir ({{ session.user }})</a></nav>{% endif %}
-{% for m in get_flashed_messages() %}<p class="msg">{{ m }}</p>{% endfor %}
-{% block content %}{% endblock %}
+{% if session.user %}
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">Universidad Ficticia <span>Apex</span></a>
+  <nav class="nav" aria-label="Principal">
+    <a href="/" {% if request.path == '/' %}class="active"{% endif %}>Inicio</a>
+    <a href="/search" {% if request.path == '/search' %}class="active"{% endif %}>Estudiantes</a>
+    <a href="/comments" {% if request.path == '/comments' %}class="active"{% endif %}>Comentarios</a>
+    <a href="/report">Reporte CSV</a>
+    {% if session.role == 'admin' %}<a href="/admin" {% if request.path == '/admin' %}class="active"{% endif %}>Administración</a>{% endif %}
+  </nav>
+  <div class="user"><span>{{ session.user }}</span><a href="/logout">Cerrar sesión</a></div>
+</div></header>
+{% endif %}
+{% block page %}
+<main>
+  {% for m in get_flashed_messages() %}<div class="notice" role="status">{{ m }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
 </body></html>

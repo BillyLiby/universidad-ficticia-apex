@@ -1,5 +1,15 @@
-{% extends "base.html" %}{% block content %}
-<h3>Comentarios</h3>
-<form method="post"><textarea name="body" rows="3" cols="50"></textarea><br><button>Publicar</button></form>
-{% for c in comments %}<p><b>{{ c.author }}</b> ({{ c.created }}):<br>{{ c.body }}</p>{% endfor %}
+{% extends "base.html" %}{% block title %}Comentarios{% endblock %}{% block content %}
+<h1>Comentarios</h1>
+<p class="lead">Comparte observaciones con la comunidad del portal.</p>
+<form method="post" class="panel">
+  <div class="field"><label for="body">Nuevo comentario</label>
+    <textarea id="body" name="body" rows="3"></textarea><div class="hint">Máximo 500 caracteres.</div></div>
+  <button>Publicar comentario</button>
+</form>
+<h2>Publicados</h2>
+<div class="panel">
+{% for c in comments %}<div class="comment">
+  <div class="comment-meta"><b>{{ c.author }}</b> · {{ c.created }}</div><p>{{ c.body }}</p></div>
+{% else %}<div class="empty">Aún no hay comentarios. Publica el primero.</div>{% endfor %}
+</div>
 {% endblock %}
