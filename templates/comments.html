@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}
+<h3>Comentarios</h3>
+<form method="post"><textarea name="body" rows="3" cols="50"></textarea><br><button>Publicar</button></form>
+{% for c in comments %}<p><b>{{ c.author }}</b> ({{ c.created }}):<br>{{ c.body }}</p>{% endfor %}
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block content %}
+<h3>Buscar estudiantes</h3>
+<form method="get"><input name="q" value="{{ q }}"><button>Buscar</button></form>
+{% if q %}<p>Resultados para: {{ q }}</p>{% endif %}
+<table><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th></th></tr>
+{% for s in results %}<tr><td>{{ s.student_id }}</td><td>{{ s.first_name }}</td><td>{{ s.last_name }}</td>
+<td><a href="/expediente/{{ s.student_id }}">Ver expediente</a></td></tr>{% endfor %}</table>
+{% endblock %}
