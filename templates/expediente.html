@@ -2,14 +2,20 @@
 {% if student %}
 <div class="profile">
   <div class="avatar" aria-hidden="true">{{ student.first_name[:1] }}{{ student.last_name[:1] }}</div>
-  <div><h1>{{ student.first_name }} {{ student.last_name }}</h1><p>Identificador {{ student.student_id }}</p></div>
+  <div><h1>{{ student.first_name }} {{ student.last_name }}</h1>
+  <p>Identificador {{ student.student_id }} · {{ student.sede or 'Sin sede' }}</p></div>
+</div>
+<div class="panel" style="margin-bottom:24px">
+  <b>{{ student.carrera or 'Sin carrera' }}</b><br>
+  <span class="badge">Cursando ciclo {{ student.ciclo or '-' }}</span>
+  {% if student.carrera_id %}<a href="/carreras/{{ student.carrera_id }}" style="margin-left:12px">Ver pensum de la carrera</a>{% endif %}
 </div>
 <div class="table-wrap"><table>
-  <thead><tr><th>Curso</th><th class="num">Nota</th></tr></thead>
-  <tbody>{% for g in grades %}<tr><td>{{ g.course }}</td><td class="num">{{ g.grade }}</td></tr>
-  {% else %}<tr><td colspan="2" class="empty">Este expediente aún no tiene calificaciones.</td></tr>{% endfor %}</tbody>
+  <thead><tr><th>Ciclo</th><th>Código</th><th>Curso</th><th class="num">Nota</th></tr></thead>
+  <tbody>{% for g in grades %}<tr><td>{{ g.ciclo or '-' }}</td><td class="muted">{{ g.code or '-' }}</td><td>{{ g.course }}</td><td class="num">{{ g.grade }}</td></tr>
+  {% else %}<tr><td colspan="4" class="empty">Este expediente aún no tiene calificaciones.</td></tr>{% endfor %}</tbody>
 </table></div>
 {% else %}
-<div class="panel empty">Estudiante no encontrado. <a href="/search">Volver a la búsqueda</a></div>
+<div class="panel empty">Estudiante no encontrado. <a href="/students">Volver al directorio</a></div>
 {% endif %}
 {% endblock %}

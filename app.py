@@ -22,7 +22,15 @@ def login_required(f):
 @app.route("/")
 @login_required
 def home():
-    return render_template("home.html")
+    conn = get_db()
+    counts = {
+        "students": conn.execute("SELECT COUNT(*) FROM students").fetchone()[0],
+        "sedes": conn.execute("SELECT COUNT(*) FROM sedes").fetchone()[0],
+        "courses": conn.execute("SELECT COUNT(*) FROM courses").fetchone()[0],
+        "carreras": conn.execute("SELECT COUNT(*) FROM carreras").fetchone()[0],
+    }
+    conn.close()
+    return render_template("home.html", counts=counts)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -85,8 +93,13 @@ def search():
 @login_required
 def expediente(student_id):
     conn = get_db()
-    student = conn.execute("SELECT * FROM students WHERE student_id = ?", (student_id,)).fetchone()
-    grades = conn.execute("SELECT * FROM grades WHERE student_id = ?", (student_id,)).fetchall()
+    student = conn.execute(
+        "SELECT s.*, se.name AS sede, ca.name AS carrera FROM students s "
+        "LEFT JOIN sedes se ON s.sede_id = se.id LEFT JOIN carreras ca ON s.carrera_id = ca.id "
+        "WHERE s.student_id = ?", (student_id,)).fetchone()
+    grades = conn.execute(
+        "SELECT g.course, g.grade, c.code, c.ciclo FROM grades g LEFT JOIN courses c ON c.name = g.course "
+        "WHERE g.student_id = ? ORDER BY c.ciclo, g.course", (student_id,)).fetchall()
     conn.close()
     return render_template("expediente.html", student=student, grades=grades)
 
@@ -102,6 +115,114 @@ def comments():
     rows = conn.execute("SELECT * FROM comments ORDER BY id DESC").fetchall()
     conn.close()
     return render_template("comments.html", comments=rows)
+
+
+@app.route("/students")
+@login_required
+def students():
+    sede = request.args.get("sede", "")
+    carrera = request.args.get("carrera", "")
+    conn = get_db()
+    sedes = conn.execute("SELECT * FROM sedes ORDER BY name").fetchall()
+    carreras = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
+    sql = ("SELECT s.student_id, s.first_name, s.last_name, s.email, s.ciclo, "
+           "se.name AS sede, ca.name AS carrera FROM students s "
+           "LEFT JOIN sedes se ON s.sede_id = se.id LEFT JOIN carreras ca ON s.carrera_id = ca.id")
+    where, params = [], []
+    if sede.isdigit():
+        where.append("s.sede_id = ?"); params.append(int(sede))
+    if carrera.isdigit():
+        where.append("s.carrera_id = ?"); params.append(int(carrera))
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    rows = conn.execute(sql + " ORDER BY s.last_name, s.first_name", params).fetchall()
+    conn.close()
+    return render_template("students.html", students=rows, sedes=sedes, carreras=carreras,
+                           sede=int(sede) if sede.isdigit() else None,
+                           carrera=int(carrera) if carrera.isdigit() else None)
+
+
+@app.route("/sedes")
+@login_required
+def sedes():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT se.id, se.name, se.city, COUNT(s.id) AS total FROM sedes se "
+        "LEFT JOIN students s ON s.sede_id = se.id GROUP BY se.id ORDER BY se.name").fetchall()
+    conn.close()
+    return render_template("sedes.html", sedes=rows)
+
+
+@app.route("/carreras")
+@login_required
+def carreras():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT ca.id, ca.code, ca.name, COUNT(DISTINCT s.id) AS estudiantes, "
+        "(SELECT COUNT(*) FROM courses c WHERE c.carrera_id = ca.id) AS cursos "
+        "FROM carreras ca LEFT JOIN students s ON s.carrera_id = ca.id GROUP BY ca.id ORDER BY ca.name").fetchall()
+    conn.close()
+    return render_template("carreras.html", carreras=rows)
+
+
+@app.route("/carreras/<int:carrera_id>")
+@login_required
+def carrera(carrera_id):
+    conn = get_db()
+    ca = conn.execute("SELECT * FROM carreras WHERE id = ?", (carrera_id,)).fetchone()
+    cursos = conn.execute("SELECT * FROM courses WHERE carrera_id = ? ORDER BY ciclo, name", (carrera_id,)).fetchall()
+    conn.close()
+    return render_template("carrera.html", carrera=ca, cursos=cursos)
+
+
+@app.route("/courses")
+@login_required
+def courses():
+    carrera = request.args.get("carrera", "")
+    conn = get_db()
+    carreras = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
+    sql = ("SELECT c.code, c.name, c.ciclo, ca.name AS carrera, COUNT(g.id) AS inscritos, "
+           "ROUND(AVG(g.grade), 1) AS promedio FROM courses c JOIN carreras ca ON c.carrera_id = ca.id "
+           "LEFT JOIN grades g ON g.course = c.name")
+    params = []
+    if carrera.isdigit():
+        sql += " WHERE c.carrera_id = ?"; params.append(int(carrera))
+    rows = conn.execute(sql + " GROUP BY c.id ORDER BY ca.name, c.ciclo, c.name", params).fetchall()
+    conn.close()
+    return render_template("courses.html", courses=rows, carreras=carreras,
+                           carrera=int(carrera) if carrera.isdigit() else None)
+
+
+@app.route("/admin", methods=["GET", "POST"])
+@login_required
+def admin():
+    if session.get("role") != "admin":
+        return "Acceso denegado", 403
+    conn = get_db()
+    try:
+        if request.method == "POST":
+            form = request.form.get("form")
+            try:
+                if form == "student":
+                    conn.execute("INSERT INTO students (student_id, first_name, last_name, email, sede_id, carrera_id, ciclo) "
+                                 "VALUES (?,?,?,?,?,?,?)",
+                                 (request.form["student_id"], request.form["first_name"], request.form["last_name"],
+                                  request.form["email"], request.form["sede_id"], request.form["carrera_id"],
+                                  request.form["ciclo"]))
+                    conn.commit()
+                    flash("Estudiante agregado.")
+                elif form == "grade":
+                    conn.execute("INSERT INTO grades (student_id, course, grade) VALUES (?,?,?)",
+                                 (request.form["student_id"], request.form["course"], request.form["grade"]))
+                    conn.commit()
+                    flash("Calificación agregada.")
+            except Exception:
+                flash("No se pudo guardar el registro.")
+        sedes_rows = conn.execute("SELECT * FROM sedes ORDER BY name").fetchall()
+        carreras_rows = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
+    finally:
+        conn.close()
+    return render_template("admin.html", sedes=sedes_rows, carreras=carreras_rows)
 
 
 @app.route("/report")

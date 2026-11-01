@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block title %}Estudiantes{% endblock %}{% block content %}
+<h1>Estudiantes</h1>
+<p class="lead">Directorio de estudiantes. Filtra por sede o carrera, o busca por nombre o identificador.</p>
+<form method="get" action="/search" class="searchbar" role="search">
+  <input name="q" aria-label="Buscar estudiantes" placeholder="Buscar por nombre, apellido o ID">
+  <button>Buscar</button>
+</form>
+<nav class="chips" aria-label="Filtrar por sede">
+  <a class="chip {% if not sede %}active{% endif %}" href="/students{% if carrera %}?carrera={{ carrera }}{% endif %}">Todas las sedes</a>
+  {% for se in sedes %}<a class="chip {% if sede == se.id %}active{% endif %}" href="/students?sede={{ se.id }}{% if carrera %}&carrera={{ carrera }}{% endif %}">{{ se.name }}</a>{% endfor %}
+</nav>
+<nav class="chips" aria-label="Filtrar por carrera">
+  <a class="chip {% if not carrera %}active{% endif %}" href="/students{% if sede %}?sede={{ sede }}{% endif %}">Todas las carreras</a>
+  {% for ca in carreras %}<a class="chip {% if carrera == ca.id %}active{% endif %}" href="/students?carrera={{ ca.id }}{% if sede %}&sede={{ sede }}{% endif %}">{{ ca.name }}</a>{% endfor %}
+</nav>
+<p class="count">{{ students|length }} estudiante{{ '' if students|length == 1 else 's' }}</p>
+{% if students %}
+<div class="table-wrap"><table>
+  <thead><tr><th>ID</th><th>Nombre</th><th>Carrera</th><th>Ciclo</th><th>Sede</th><th></th></tr></thead>
+  <tbody>{% for s in students %}<tr>
+    <td>{{ s.student_id }}</td><td>{{ s.first_name }} {{ s.last_name }}<div class="hint">{{ s.email }}</div></td>
+    <td>{{ s.carrera or 'Sin carrera' }}</td><td><span class="badge">Ciclo {{ s.ciclo or '-' }}</span></td>
+    <td>{{ s.sede or 'Sin sede' }}</td><td class="num"><a href="/expediente/{{ s.student_id }}">Ver expediente</a></td>
+  </tr>{% endfor %}</tbody></table></div>
+{% else %}<div class="panel empty">No hay estudiantes con esos filtros.</div>{% endif %}
+{% endblock %}

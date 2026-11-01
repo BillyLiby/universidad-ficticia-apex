@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Pensum{% endblock %}{% block content %}
+{% if carrera %}
+<h1>{{ carrera.name }}</h1>
+<p class="lead">Pensum organizado por ciclo. <a href="/students?carrera={{ carrera.id }}">Ver estudiantes de esta carrera</a></p>
+{% for ciclo, items in cursos|groupby('ciclo') %}
+<div class="ciclo-title"><h2>Ciclo {{ ciclo }}</h2><span class="muted">{{ items|length }} cursos</span></div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Curso</th></tr></thead>
+  <tbody>{% for c in items %}<tr><td class="muted">{{ c.code }}</td><td>{{ c.name }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endfor %}
+{% else %}<div class="panel empty">Carrera no encontrada. <a href="/carreras">Volver a carreras</a></div>{% endif %}
+{% endblock %}

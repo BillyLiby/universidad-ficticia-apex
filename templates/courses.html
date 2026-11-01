@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block title %}Cursos{% endblock %}{% block content %}
+<h1>Cursos</h1>
+<p class="lead">Todos los cursos por carrera y ciclo, con calificaciones registradas y promedio.</p>
+<nav class="chips" aria-label="Filtrar por carrera">
+  <a class="chip {% if not carrera %}active{% endif %}" href="/courses">Todas las carreras</a>
+  {% for ca in carreras %}<a class="chip {% if carrera == ca.id %}active{% endif %}" href="/courses?carrera={{ ca.id }}">{{ ca.name }}</a>{% endfor %}
+</nav>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Curso</th><th>Carrera</th><th>Ciclo</th><th class="num">Calificaciones</th><th class="num">Promedio</th></tr></thead>
+  <tbody>{% for c in courses %}<tr><td class="muted">{{ c.code }}</td><td>{{ c.name }}</td><td>{{ c.carrera }}</td>
+    <td><span class="badge">Ciclo {{ c.ciclo }}</span></td><td class="num">{{ c.inscritos }}</td>
+    <td class="num">{{ c.promedio if c.promedio is not none else '-' }}</td></tr>
+  {% else %}<tr><td colspan="6" class="empty">Aún no hay cursos registrados.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

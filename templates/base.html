@@ -11,7 +11,10 @@
   <a class="brand" href="/">Universidad Ficticia <span>Apex</span></a>
   <nav class="nav" aria-label="Principal">
     <a href="/" {% if request.path == '/' %}class="active"{% endif %}>Inicio</a>
-    <a href="/search" {% if request.path == '/search' %}class="active"{% endif %}>Estudiantes</a>
+    <a href="/students" {% if request.path in ['/students', '/search'] or request.path.startswith('/expediente') %}class="active"{% endif %}>Estudiantes</a>
+    <a href="/carreras" {% if request.path.startswith('/carreras') %}class="active"{% endif %}>Carreras</a>
+    <a href="/courses" {% if request.path == '/courses' %}class="active"{% endif %}>Cursos</a>
+    <a href="/sedes" {% if request.path == '/sedes' %}class="active"{% endif %}>Sedes</a>
     <a href="/comments" {% if request.path == '/comments' %}class="active"{% endif %}>Comentarios</a>
     <a href="/report">Reporte CSV</a>
     {% if session.role == 'admin' %}<a href="/admin" {% if request.path == '/admin' %}class="active"{% endif %}>Administración</a>{% endif %}

@@ -1,8 +1,11 @@
 {% extends "base.html" %}{% block title %}Inicio{% endblock %}{% block content %}
 <h1>Bienvenido</h1>
-<p class="lead">Consulta expedientes, publica comentarios y genera reportes académicos.</p>
+<p class="lead">Consulta estudiantes, cursos y sedes, publica comentarios y genera reportes académicos.</p>
 <ul class="links">
-  <li><a href="/search"><strong>Buscar estudiantes</strong><small>Encuentra un estudiante y abre su expediente académico.</small></a></li>
+  <li><a href="/students"><strong>Estudiantes</strong><small>{{ counts.students }} registrados. Directorio, búsqueda y expedientes.</small></a></li>
+  <li><a href="/carreras"><strong>Carreras</strong><small>{{ counts.carreras }} carreras con su pensum por ciclo.</small></a></li>
+  <li><a href="/courses"><strong>Cursos</strong><small>{{ counts.courses }} cursos con promedio de calificaciones.</small></a></li>
+  <li><a href="/sedes"><strong>Sedes</strong><small>{{ counts.sedes }} sedes y su población estudiantil.</small></a></li>
   <li><a href="/comments"><strong>Comentarios</strong><small>Lee y publica comentarios del portal.</small></a></li>
   <li><a href="/report"><strong>Reporte de calificaciones</strong><small>Descarga las calificaciones en formato CSV.</small></a></li>
 </ul>

@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Carreras{% endblock %}{% block content %}
+<h1>Carreras</h1>
+<p class="lead">Oferta académica. Abre una carrera para ver su pensum por ciclo.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Carrera</th><th class="num">Cursos</th><th class="num">Estudiantes</th><th></th></tr></thead>
+  <tbody>{% for ca in carreras %}<tr><td class="muted">{{ ca.code }}</td><td>{{ ca.name }}</td>
+    <td class="num">{{ ca.cursos }}</td><td class="num">{{ ca.estudiantes }}</td>
+    <td class="num"><a href="/carreras/{{ ca.id }}">Ver pensum</a></td></tr>
+  {% else %}<tr><td colspan="5" class="empty">Aún no hay carreras registradas.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

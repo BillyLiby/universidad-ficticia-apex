@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Sedes{% endblock %}{% block content %}
+<h1>Sedes</h1>
+<p class="lead">Campus de la universidad y estudiantes inscritos en cada uno.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Sede</th><th>Ciudad</th><th class="num">Estudiantes</th><th></th></tr></thead>
+  <tbody>{% for se in sedes %}<tr><td>{{ se.name }}</td><td class="muted">{{ se.city }}</td>
+    <td class="num">{{ se.total }}</td><td class="num"><a href="/students?sede={{ se.id }}">Ver estudiantes</a></td></tr>
+  {% else %}<tr><td colspan="4" class="empty">Aún no hay sedes registradas.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}
