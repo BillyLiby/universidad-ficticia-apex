@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Laboratorio comandos{% endblock %}{% block content %}
+<h1>Laboratorio: inyección de comandos</h1>
+<div class="lab-banner {{ 'lab-bad' if vulnerable else 'lab-ok' }}">
+  {% if vulnerable %}Modo vulnerable: el nombre de archivo se concatena en un comando de shell.{% else %}Modo seguro: sin shell, sin comandos externos.{% endif %}
+  Solo laboratorio, datos ficticios. Windows: usa &amp; como separador de comandos.
+</div>
+<p class="lead">Genera y comprime el reporte académico con el nombre que indiques.</p>
+<form method="post" class="panel">
+  <div class="field"><label for="filename">Nombre del archivo comprimido</label>
+    <input id="filename" name="filename" placeholder="reporte_octubre">
+    <div class="hint">Se guardará como reports/&lt;nombre&gt;.zip</div></div>
+  <button>Generar y comprimir</button>
+</form>
+{% if cmd %}<p class="count">Comando ejecutado</p><pre class="sqlbox">{{ cmd }}</pre>{% endif %}
+{% if output %}<p class="count">Salida</p><pre class="sqlbox">{{ output }}</pre>{% endif %}
+{% if error %}<div class="notice error" role="alert">Error: {{ error }}</div>{% endif %}
+<p class="count">Archivos en reports/</p>
+<div class="table-wrap"><table><thead><tr><th>Archivo</th></tr></thead>
+<tbody>{% for f in files %}<tr><td>{{ f }}</td></tr>{% else %}<tr><td class="empty">Carpeta vacía.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

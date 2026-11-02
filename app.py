@@ -1,5 +1,9 @@
 import csv
 import io
+import os
+import re
+import subprocess
+import zipfile
 from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, Response)
@@ -9,6 +13,10 @@ import validators as v
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPORTS_DIR = os.path.join(BASE_DIR, "reports")
+os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
 @app.after_request
@@ -279,6 +287,50 @@ def report():
         writer.writerow(list(r))
     return Response(out.getvalue(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=reporte.csv"})
+
+
+def build_report_csv():
+    """Genera el CSV del reporte académico y lo deja en disco como report.csv."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT s.student_id, s.first_name, s.last_name, g.course, g.grade "
+        "FROM students s JOIN grades g ON s.student_id = g.student_id").fetchall()
+    conn.close()
+    path = os.path.join(BASE_DIR, "report.csv")
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["student_id", "nombre", "apellido", "curso", "nota"])
+        for r in rows:
+            writer.writerow(list(r))
+    return path
+
+
+# =====================================================================
+# LABORATORIO FASE I-D: compresión del reporte VULNERABLE a inyección de
+# comandos (solo laboratorio, datos ficticios, servidor local). Se corrige
+# en el siguiente commit.
+# =====================================================================
+@app.route("/lab/compress", methods=["GET", "POST"])
+@login_required
+def lab_compress():
+    cmd_shown, output, error = None, None, None
+    if request.method == "POST":
+        filename = request.form.get("filename", "")
+        build_report_csv()
+        # VULNERABLE: el nombre que escribe el usuario se concatena dentro de una
+        # cadena que luego se pasa a una shell del sistema operativo (shell=True).
+        # El sistema ya no distingue entre "nombre de archivo" y "otro comando".
+        cmd = "copy report.csv reports\\" + filename + ".zip"
+        cmd_shown = cmd
+        try:
+            result = subprocess.run(cmd, shell=True, cwd=BASE_DIR,
+                                    capture_output=True, text=True, timeout=10)
+            output = (result.stdout or "") + (result.stderr or "")
+        except Exception as e:
+            error = str(e)
+    files = sorted(os.listdir(REPORTS_DIR))
+    return render_template("lab_compress.html", cmd=cmd_shown, output=output, error=error,
+                           files=files, vulnerable=True)
 
 
 # =====================================================================
