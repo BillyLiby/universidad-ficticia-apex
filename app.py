@@ -279,6 +279,7 @@ def report():
 @login_required
 def lab_search():
     q = request.args.get("q", "")
+    # CORREGIDO: la sentencia es fija; el dato viaja aparte como parámetro
     sql = ("SELECT student_id, first_name, last_name, email FROM students "
            "WHERE first_name LIKE ? OR last_name LIKE ?")
     like = f"%{q}%"
@@ -296,6 +297,20 @@ def lab_search():
             conn.close()
     return render_template("lab_search.html", q=q, sql=sql if q else "", params=params if q else None,
                            rows=rows, cols=cols, error=error, vulnerable=False)
+
+
+# =====================================================================
+# LABORATORIO FASE I-C: salida VULNERABLE a XSS a propósito (solo laboratorio,
+# datos ficticios, servidor local). Se corrige en el siguiente commit.
+# =====================================================================
+@app.route("/lab/xss")
+@login_required
+def lab_xss():
+    q = request.args.get("q", "")
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM comments ORDER BY id DESC").fetchall()
+    conn.close()
+    return render_template("lab_xss.html", q=q, comments=rows, vulnerable=True)
 
 
 if __name__ == "__main__":

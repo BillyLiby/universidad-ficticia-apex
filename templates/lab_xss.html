@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% block title %}Laboratorio XSS{% endblock %}{% block content %}
+<h1>Laboratorio: XSS</h1>
+<div class="lab-banner lab-bad">Modo vulnerable: los datos se insertan como HTML sin codificar. Solo laboratorio, datos ficticios.</div>
+
+<h2>1. XSS reflejado</h2>
+<form method="get" class="searchbar">
+  <input name="q" value="{{ q }}" aria-label="Valor a reflejar" placeholder="Valor que la página devolverá">
+  <button>Enviar</button>
+</form>
+{% if q %}<div class="panel">Valor recibido: {{ q|safe }}</div>{% endif %}
+
+<h2>2. XSS almacenado</h2>
+<p class="hint" style="margin-bottom:12px">Publica un comentario en <a href="/comments">Comentarios</a> y regresa a esta página.</p>
+<div class="panel">
+{% for c in comments %}<div class="comment">
+  <div class="comment-meta"><b>{{ c.author }}</b> · {{ c.created }}</div><p>{{ c.body|safe }}</p></div>
+{% else %}<div class="empty">Aún no hay comentarios.</div>{% endfor %}
+</div>
+
+<h2>3. XSS basado en DOM</h2>
+<p class="hint" style="margin-bottom:12px">El valor se toma del fragmento de la URL (lo que va después de #).</p>
+<div class="panel" id="dom-out"><span class="muted">Agrega #valor al final de la URL y recarga.</span></div>
+<script src="{{ url_for('static', filename='js/lab_xss.js') }}"></script>
+{% endblock %}
