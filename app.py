@@ -11,6 +11,17 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
 
+@app.after_request
+def security_headers(resp):
+    # Defensa en profundidad: aunque algún dato llegara sin codificar, el navegador
+    # no ejecuta scripts en línea ni manejadores onerror/onclick.
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+        "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
+
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -300,8 +311,8 @@ def lab_search():
 
 
 # =====================================================================
-# LABORATORIO FASE I-C: salida VULNERABLE a XSS a propósito (solo laboratorio,
-# datos ficticios, servidor local). Se corrige en el siguiente commit.
+# LABORATORIO FASE I-C: salida CORREGIDA contra XSS (codificación de salida
+# contextual + textContent en el cliente + CSP como defensa en profundidad).
 # =====================================================================
 @app.route("/lab/xss")
 @login_required
@@ -310,7 +321,7 @@ def lab_xss():
     conn = get_db()
     rows = conn.execute("SELECT * FROM comments ORDER BY id DESC").fetchall()
     conn.close()
-    return render_template("lab_xss.html", q=q, comments=rows, vulnerable=True)
+    return render_template("lab_xss.html", q=q, comments=rows, vulnerable=False)
 
 
 if __name__ == "__main__":

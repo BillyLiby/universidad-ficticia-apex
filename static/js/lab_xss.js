@@ -1,8 +1,12 @@
-// VULNERABLE (XSS basado en DOM): el fragmento de la URL se inserta como HTML.
 (function () {
   var salida = document.getElementById("dom-out");
-  var valor = decodeURIComponent(window.location.hash.slice(1));
+  var valor = "";
+  try {
+    valor = decodeURIComponent(window.location.hash.slice(1));
+  } catch (e) {
+    valor = "";
+  }
   if (valor) {
-    salida.innerHTML = "Hola, " + valor;
+    salida.textContent = "Hola, " + valor;
   }
 })();
