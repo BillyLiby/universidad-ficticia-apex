@@ -270,5 +270,31 @@ def report():
                     headers={"Content-Disposition": "attachment; filename=reporte.csv"})
 
 
+# =====================================================================
+# LABORATORIO FASE I-B: consulta VULNERABLE a propósito (solo laboratorio,
+# datos ficticios, servidor local). Se corrige en el siguiente commit.
+# =====================================================================
+@app.route("/lab/search")
+@login_required
+def lab_search():
+    q = request.args.get("q", "")
+    # VULNERABLE: el dato del usuario se concatena directamente en la sentencia SQL
+    sql = ("SELECT student_id, first_name, last_name, email FROM students "
+           "WHERE first_name LIKE '%" + q + "%' OR last_name LIKE '%" + q + "%'")
+    rows, cols, error = [], [], None
+    if q:
+        conn = get_db()
+        try:
+            cur = conn.execute(sql)
+            cols = [d[0] for d in cur.description]
+            rows = cur.fetchall()
+        except Exception as e:
+            error = str(e)
+        finally:
+            conn.close()
+    return render_template("lab_search.html", q=q, sql=sql if q else "", rows=rows,
+                           cols=cols, error=error, vulnerable=True)
+
+
 if __name__ == "__main__":
     app.run(debug=False)

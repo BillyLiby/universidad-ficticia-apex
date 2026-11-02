@@ -120,3 +120,8 @@ select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px #D3EED
 .filters .count{margin:8px 0 4px}
 
 .notice.error{border-left-color:var(--danger);background:#FDECEA;color:#7A1A12}
+
+.lab-banner{padding:10px 14px;border-radius:6px;margin:0 0 20px;font-size:15px;font-weight:600}
+.lab-bad{background:#FDECEA;color:#7A1A12;border:1px solid #F4B8B0}
+.lab-ok{background:var(--accent-soft);color:var(--accent-dark);border:1px solid #B7DFC4}
+.sqlbox{background:#0F1F17;color:#D7F5E0;padding:14px 16px;border-radius:6px;overflow-x:auto;font-family:Consolas,"Courier New",monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;margin:0 0 20px}
