@@ -31,7 +31,7 @@ class TestAppValidation(unittest.TestCase):
 
     def student(self, **over):
         data = {"form": "student", "student_id": "2026099", "first_name": "Rosa", "last_name": "Diaz",
-                "email": "rosa@uni.test", "sede_id": "1", "carrera_id": "1", "ciclo": "1"}
+                "email": "rosa@uni.test", "phone": "55019999", "sede_id": "1", "carrera_id": "1", "ciclo": "1"}
         data.update(over)
         return self.client.post("/admin", data=data)
 

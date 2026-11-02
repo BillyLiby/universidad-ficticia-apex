@@ -2,6 +2,7 @@ import sqlite3
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, InvalidHashError
 from config import DB_PATH
+from crypto_utils import encrypt_field
 
 # CORREGIDO (Fase II-A): Argon2id en vez de SHA-256 simple.
 # Argon2id es una Key Derivation Function: lenta a propósito, usa memoria
@@ -52,15 +53,17 @@ PENSUM = {
         4: ["Planeación Estratégica", "Administración de Proyectos"]},
 }
 # (student_id, nombre, apellido, correo, sede_id, carrera_id, ciclo actual)
+# (student_id, nombre, apellido, correo, teléfono (dato sensible, se cifra
+# antes de guardarse), sede_id, carrera_id, ciclo actual)
 STUDENTS = [
-    ("2026001", "Ana", "Lopez", "ana@uni.test", 1, 1, 3),
-    ("2026002", "Carlos", "Perez", "carlos@uni.test", 1, 1, 2),
-    ("2026003", "Maria", "Gomez", "maria@uni.test", 2, 2, 4),
-    ("2026004", "Luis", "Ruiz", "luis@uni.test", 2, 3, 1),
-    ("2026005", "Sofia", "Castillo", "sofia@uni.test", 3, 2, 2),
-    ("2026006", "Diego", "Morales", "diego@uni.test", 3, 3, 3),
-    ("2026007", "Valeria", "Soto", "valeria@uni.test", 1, 2, 3),
-    ("2026008", "Mateo", "Rivas", "mateo@uni.test", 2, 1, 4),
+    ("2026001", "Ana", "Lopez", "ana@uni.test", "55011001", 1, 1, 3),
+    ("2026002", "Carlos", "Perez", "carlos@uni.test", "55011002", 1, 1, 2),
+    ("2026003", "Maria", "Gomez", "maria@uni.test", "55011003", 2, 2, 4),
+    ("2026004", "Luis", "Ruiz", "luis@uni.test", "55011004", 2, 3, 1),
+    ("2026005", "Sofia", "Castillo", "sofia@uni.test", "55011005", 3, 2, 2),
+    ("2026006", "Diego", "Morales", "diego@uni.test", "55011006", 3, 3, 3),
+    ("2026007", "Valeria", "Soto", "valeria@uni.test", "55011007", 1, 2, 3),
+    ("2026008", "Mateo", "Rivas", "mateo@uni.test", "55011008", 2, 1, 4),
 ]
 
 
@@ -82,6 +85,7 @@ def init_db():
                           carrera_id INTEGER REFERENCES carreras(id), ciclo INTEGER);
     CREATE TABLE students (id INTEGER PRIMARY KEY, student_id TEXT UNIQUE,
                            first_name TEXT, last_name TEXT, email TEXT,
+                           phone_encrypted TEXT,
                            sede_id INTEGER REFERENCES sedes(id),
                            carrera_id INTEGER REFERENCES carreras(id), ciclo INTEGER);
     CREATE TABLE grades (id INTEGER PRIMARY KEY, student_id TEXT,
@@ -104,10 +108,12 @@ def init_db():
             for n, name in enumerate(names, start=1):
                 courses.append((f"{prefix[cid]}{ciclo}0{n}", name, cid, ciclo))
     conn.executemany("INSERT INTO courses (code, name, carrera_id, ciclo) VALUES (?,?,?,?)", courses)
-    conn.executemany("INSERT INTO students (student_id, first_name, last_name, email, sede_id, carrera_id, ciclo) "
-                     "VALUES (?,?,?,?,?,?,?)", STUDENTS)
+    students_rows = [(sid, fn, ln, em, encrypt_field(phone), sede, car, ciclo)
+                     for sid, fn, ln, em, phone, sede, car, ciclo in STUDENTS]
+    conn.executemany("INSERT INTO students (student_id, first_name, last_name, email, phone_encrypted, "
+                     "sede_id, carrera_id, ciclo) VALUES (?,?,?,?,?,?,?,?)", students_rows)
     grades = []
-    for idx, (sid, _, _, _, _, cid, ciclo_actual) in enumerate(STUDENTS):
+    for idx, (sid, _, _, _, _, _, cid, ciclo_actual) in enumerate(STUDENTS):
         for code, name, c_id, ciclo in courses:
             if c_id == cid and ciclo <= ciclo_actual:
                 grades.append((sid, name, 62 + (sum(map(ord, code)) + idx * 7) % 37))

@@ -61,3 +61,10 @@ def int_param(value):
 def valid_ciclo(value):
     n = int_param(value)
     return n if n is not None and 1 <= n <= 10 else None
+
+
+PHONE_RE = re.compile(r"^[0-9]{8}$")
+
+
+def valid_phone(value):
+    return isinstance(value, str) and bool(PHONE_RE.match(value))

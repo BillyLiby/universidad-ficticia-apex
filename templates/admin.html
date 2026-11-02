@@ -8,6 +8,7 @@
   <div class="field"><label for="s_fn">Nombre</label><input id="s_fn" name="first_name"></div>
   <div class="field"><label for="s_ln">Apellido</label><input id="s_ln" name="last_name"></div>
   <div class="field"><label for="s_em">Correo</label><input id="s_em" name="email"></div>
+  <div class="field"><label for="s_ph">Teléfono</label><input id="s_ph" name="phone"><div class="hint">8 dígitos. Se guarda cifrado.</div></div>
   <div class="field"><label for="s_se">Sede</label><select id="s_se" name="sede_id">
     {% for se in sedes %}<option value="{{ se.id }}">{{ se.name }}</option>{% endfor %}</select></div>
   <div class="field"><label for="s_ca">Carrera</label><select id="s_ca" name="carrera_id">

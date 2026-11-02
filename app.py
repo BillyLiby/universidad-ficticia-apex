@@ -10,6 +10,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, Response)
 from config import SECRET_KEY
 from db import get_db, hash_password, verify_password
+from crypto_utils import encrypt_field, decrypt_field
 import validators as v
 
 app = Flask(__name__)
@@ -130,11 +131,12 @@ def expediente(student_id):
         "SELECT s.*, se.name AS sede, ca.name AS carrera FROM students s "
         "LEFT JOIN sedes se ON s.sede_id = se.id LEFT JOIN carreras ca ON s.carrera_id = ca.id "
         "WHERE s.student_id = ?", (student_id,)).fetchone()
+    phone = decrypt_field(student["phone_encrypted"]) if student else None
     grades = conn.execute(
         "SELECT g.course, g.grade, c.code, c.ciclo FROM grades g LEFT JOIN courses c ON c.name = g.course "
         "WHERE g.student_id = ? ORDER BY c.ciclo, g.course", (student_id,)).fetchall()
     conn.close()
-    return render_template("expediente.html", student=student, grades=grades)
+    return render_template("expediente.html", student=student, grades=grades, phone=phone)
 
 
 @app.route("/comments", methods=["GET", "POST"])
@@ -236,19 +238,21 @@ def admin():
         if request.method == "POST":
             form = request.form.get("form")
             if form == "student":
-                sid, fn, ln, em = (request.form.get(k, "") for k in ("student_id", "first_name", "last_name", "email"))
+                sid, fn, ln, em, phone = (request.form.get(k, "") for k in
+                                          ("student_id", "first_name", "last_name", "email", "phone"))
                 sede_id = v.int_param(request.form.get("sede_id", ""))
                 carrera_id = v.int_param(request.form.get("carrera_id", ""))
                 ciclo = v.valid_ciclo(request.form.get("ciclo", ""))
                 sede_ok = sede_id is not None and conn.execute("SELECT 1 FROM sedes WHERE id = ?", (sede_id,)).fetchone()
                 carrera_ok = carrera_id is not None and conn.execute("SELECT 1 FROM carreras WHERE id = ?", (carrera_id,)).fetchone()
                 if not (v.valid_student_id(sid) and v.valid_name(fn) and v.valid_name(ln) and v.valid_email(em)
-                        and sede_ok and carrera_ok and ciclo):
-                    flash("Datos de estudiante inválidos.", "error")
+                        and v.valid_phone(phone) and sede_ok and carrera_ok and ciclo):
+                    flash("Datos de estudiante inválidos (revisa también el teléfono: 8 dígitos).", "error")
                 else:
                     try:
-                        conn.execute("INSERT INTO students (student_id, first_name, last_name, email, sede_id, carrera_id, ciclo) "
-                                     "VALUES (?,?,?,?,?,?,?)", (sid, fn, ln, em, sede_id, carrera_id, ciclo))
+                        conn.execute("INSERT INTO students (student_id, first_name, last_name, email, phone_encrypted, "
+                                     "sede_id, carrera_id, ciclo) VALUES (?,?,?,?,?,?,?,?)",
+                                     (sid, fn, ln, em, encrypt_field(phone), sede_id, carrera_id, ciclo))
                         conn.commit()
                         flash("Estudiante agregado.")
                     except Exception:
@@ -419,5 +423,38 @@ def lab_password():
     return render_template("lab_password.html", result=result)
 
 
+# =====================================================================
+# LABORATORIO FASE II-B: cifrado de datos en reposo con Fernet (AES-128-CBC
+# + HMAC-SHA256, de la biblioteca 'cryptography'). Nada aquí se guarda en
+# la base de datos; es solo para evidenciar el mecanismo.
+# =====================================================================
+@app.route("/lab/crypto", methods=["GET", "POST"])
+@login_required
+def lab_crypto():
+    result = None
+    if request.method == "POST":
+        texto = request.form.get("texto", "")
+        if texto:
+            token_1 = encrypt_field(texto)
+            token_2 = encrypt_field(texto)  # mismo texto, otra llamada
+            descifrado = decrypt_field(token_1)
+            # Prueba de integridad: se altera un carácter del token cifrado.
+            manipulado = token_1[:-1] + ("A" if token_1[-1] != "A" else "B")
+            resultado_manipulado = decrypt_field(manipulado)
+            result = {
+                "texto": texto, "token_1": token_1, "token_2": token_2,
+                "iguales": token_1 == token_2, "descifrado": descifrado,
+                "manipulado": manipulado, "resultado_manipulado": resultado_manipulado,
+            }
+    return render_template("lab_crypto.html", result=result)
+
+
 if __name__ == "__main__":
-    app.run(debug=False)
+    # Fase II-B: protección en tránsito con TLS. En desarrollo se usa un
+    # certificado autofirmado ('adhoc', vía pyOpenSSL) solo para demostrar
+    # el cifrado del canal; en producción se usaría un certificado emitido
+    # por una autoridad certificadora reconocida (Let's Encrypt u otra).
+    if os.environ.get("APEX_TLS") == "1":
+        app.run(debug=False, ssl_context="adhoc")
+    else:
+        app.run(debug=False)

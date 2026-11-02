@@ -3,7 +3,8 @@
 <div class="profile">
   <div class="avatar" aria-hidden="true">{{ student.first_name[:1] }}{{ student.last_name[:1] }}</div>
   <div><h1>{{ student.first_name }} {{ student.last_name }}</h1>
-  <p>Identificador {{ student.student_id }} · {{ student.sede or 'Sin sede' }}</p></div>
+  <p>Identificador {{ student.student_id }} · {{ student.sede or 'Sin sede' }}</p>
+  <p class="hint">Teléfono: {{ phone or 'No disponible' }} <span class="muted">(dato cifrado en la base de datos)</span></p></div>
 </div>
 <div class="panel" style="margin-bottom:24px">
   <b>{{ student.carrera or 'Sin carrera' }}</b><br>

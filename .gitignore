@@ -1,8 +1,7 @@
 venv/
 __pycache__/
 *.db
-.env
-reports/
 reports/*
 !reports/.gitkeep
 report.csv
+.env

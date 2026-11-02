@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% block title %}Laboratorio cifrado{% endblock %}{% block content %}
+<h1>Laboratorio: cifrado de datos en reposo</h1>
+<div class="lab-banner lab-ok">Fernet (AES-128-CBC + HMAC-SHA256). Nada aquí se guarda en la base de datos.</div>
+<form method="post" class="panel">
+  <div class="field"><label for="texto">Texto a proteger</label>
+    <input id="texto" name="texto" value="{{ result.texto if result else '' }}" placeholder="Ej. 55011234"></div>
+  <button>Cifrar</button>
+</form>
+{% if result %}
+<h2>Cifrado (dos llamadas, mismo texto)</h2>
+<div class="panel">
+  <p class="count">Token 1:</p><pre class="sqlbox">{{ result.token_1 }}</pre>
+  <p class="count">Token 2:</p><pre class="sqlbox">{{ result.token_2 }}</pre>
+  <p>{% if not result.iguales %}<span class="badge">Diferentes</span> — cada cifrado usa un vector de inicialización aleatorio nuevo.{% endif %}</p>
+</div>
+<h2>Descifrado</h2>
+<div class="panel"><p>Texto original recuperado: <b>{{ result.descifrado }}</b></p></div>
+<h2>Prueba de integridad (token alterado)</h2>
+<div class="panel">
+  <p class="count">Token con un carácter modificado:</p><pre class="sqlbox">{{ result.manipulado }}</pre>
+  <p>Resultado al intentar descifrarlo: {% if result.resultado_manipulado is none %}<span class="badge" style="background:#FDECEA;color:#7A1A12">Rechazado (HMAC no coincide)</span>{% else %}{{ result.resultado_manipulado }}{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}
