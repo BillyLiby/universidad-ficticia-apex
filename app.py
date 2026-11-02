@@ -2,7 +2,6 @@ import csv
 import io
 import os
 import re
-import subprocess
 import zipfile
 from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
@@ -306,34 +305,6 @@ def build_report_csv():
 
 
 # =====================================================================
-# LABORATORIO FASE I-D: compresión del reporte VULNERABLE a inyección de
-# comandos (solo laboratorio, datos ficticios, servidor local). Se corrige
-# en el siguiente commit.
-# =====================================================================
-@app.route("/lab/compress", methods=["GET", "POST"])
-@login_required
-def lab_compress():
-    cmd_shown, output, error = None, None, None
-    if request.method == "POST":
-        filename = request.form.get("filename", "")
-        build_report_csv()
-        # VULNERABLE: el nombre que escribe el usuario se concatena dentro de una
-        # cadena que luego se pasa a una shell del sistema operativo (shell=True).
-        # El sistema ya no distingue entre "nombre de archivo" y "otro comando".
-        cmd = "copy report.csv reports\\" + filename + ".zip"
-        cmd_shown = cmd
-        try:
-            result = subprocess.run(cmd, shell=True, cwd=BASE_DIR,
-                                    capture_output=True, text=True, timeout=10)
-            output = (result.stdout or "") + (result.stderr or "")
-        except Exception as e:
-            error = str(e)
-    files = sorted(os.listdir(REPORTS_DIR))
-    return render_template("lab_compress.html", cmd=cmd_shown, output=output, error=error,
-                           files=files, vulnerable=True)
-
-
-# =====================================================================
 # LABORATORIO FASE I-B: consulta CORREGIDA con parámetros (sentencia preparada).
 # Se mantiene sin validar la entrada a propósito, para demostrar que la
 # parametrización por sí sola impide alterar la estructura SQL.
@@ -374,6 +345,44 @@ def lab_xss():
     rows = conn.execute("SELECT * FROM comments ORDER BY id DESC").fetchall()
     conn.close()
     return render_template("lab_xss.html", q=q, comments=rows, vulnerable=False)
+
+
+# =====================================================================
+# LABORATORIO FASE I-D: compresión del reporte CORREGIDA. No se invoca
+# ninguna shell del sistema operativo: se usa la biblioteca estándar
+# zipfile, con el nombre de archivo validado por lista blanca y la
+# escritura confinada a la carpeta reports/ (privilegios mínimos).
+# =====================================================================
+FILENAME_RE = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
+
+
+@app.route("/lab/compress", methods=["GET", "POST"])
+@login_required
+def lab_compress():
+    cmd_shown, output, error = None, None, None
+    if request.method == "POST":
+        filename = request.form.get("filename", "")
+        if not FILENAME_RE.match(filename):
+            error = "Nombre de archivo inválido (solo letras, números, '_' y '-', máx. 40)."
+        else:
+            report_path = build_report_csv()
+            # CORREGIDO: no se construye ningún comando de shell. zipfile comprime
+            # el archivo directamente dentro del proceso de Python, sin invocar
+            # un intérprete de comandos externo ni concatenar texto que el
+            # sistema operativo pueda interpretar como instrucciones.
+            zip_path = os.path.join(REPORTS_DIR, filename + ".zip")
+            # Confinamiento: el resultado SIEMPRE queda dentro de REPORTS_DIR,
+            # sin importar el valor de 'filename' (ya validado por lista blanca).
+            if not os.path.abspath(zip_path).startswith(os.path.abspath(REPORTS_DIR) + os.sep):
+                error = "Ruta de destino no permitida."
+            else:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(report_path, arcname="report.csv")
+                cmd_shown = f"zipfile.ZipFile('{filename}.zip').write('report.csv')  # API de Python, sin shell"
+                output = f"Comprimido correctamente: reports/{filename}.zip"
+    files = sorted(os.listdir(REPORTS_DIR))
+    return render_template("lab_compress.html", cmd=cmd_shown, output=output, error=error,
+                           files=files, vulnerable=False)
 
 
 if __name__ == "__main__":
