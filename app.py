@@ -271,29 +271,31 @@ def report():
 
 
 # =====================================================================
-# LABORATORIO FASE I-B: consulta VULNERABLE a propósito (solo laboratorio,
-# datos ficticios, servidor local). Se corrige en el siguiente commit.
+# LABORATORIO FASE I-B: consulta CORREGIDA con parámetros (sentencia preparada).
+# Se mantiene sin validar la entrada a propósito, para demostrar que la
+# parametrización por sí sola impide alterar la estructura SQL.
 # =====================================================================
 @app.route("/lab/search")
 @login_required
 def lab_search():
     q = request.args.get("q", "")
-    # VULNERABLE: el dato del usuario se concatena directamente en la sentencia SQL
     sql = ("SELECT student_id, first_name, last_name, email FROM students "
-           "WHERE first_name LIKE '%" + q + "%' OR last_name LIKE '%" + q + "%'")
+           "WHERE first_name LIKE ? OR last_name LIKE ?")
+    like = f"%{q}%"
+    params = (like, like)
     rows, cols, error = [], [], None
     if q:
         conn = get_db()
         try:
-            cur = conn.execute(sql)
+            cur = conn.execute(sql, params)
             cols = [d[0] for d in cur.description]
             rows = cur.fetchall()
-        except Exception as e:
-            error = str(e)
+        except Exception:
+            error = "No se pudo completar la búsqueda."
         finally:
             conn.close()
-    return render_template("lab_search.html", q=q, sql=sql if q else "", rows=rows,
-                           cols=cols, error=error, vulnerable=True)
+    return render_template("lab_search.html", q=q, sql=sql if q else "", params=params if q else None,
+                           rows=rows, cols=cols, error=error, vulnerable=False)
 
 
 if __name__ == "__main__":

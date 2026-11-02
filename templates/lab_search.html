@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}Laboratorio SQL{% endblock %}{% block content %}
 <h1>Laboratorio: búsqueda SQL</h1>
 <div class="lab-banner {{ 'lab-bad' if vulnerable else 'lab-ok' }}">
-  {% if vulnerable %}Modo vulnerable: la entrada se concatena en la consulta SQL.{% else %}Modo seguro: consulta parametrizada.{% endif %}
+  {% if vulnerable %}Modo vulnerable: la entrada se concatena en la consulta SQL.{% else %}Modo seguro: consulta parametrizada, la entrada no puede alterar la sentencia.{% endif %}
   Solo laboratorio, datos ficticios.
 </div>
 <form method="get" class="searchbar" role="search">
@@ -9,6 +9,7 @@
   <button>Ejecutar</button>
 </form>
 {% if sql %}<p class="count">Sentencia ejecutada</p><pre class="sqlbox">{{ sql }}</pre>{% endif %}
+{% if params %}<p class="count">Parámetros enviados por separado (tratados siempre como datos)</p><pre class="sqlbox">{{ params|join('\n') }}</pre>{% endif %}
 {% if error %}<div class="notice error" role="alert">Error SQL: {{ error }}</div>{% endif %}
 {% if rows %}<p class="count">{{ rows|length }} fila{{ '' if rows|length == 1 else 's' }}</p>
 <div class="table-wrap"><table>
