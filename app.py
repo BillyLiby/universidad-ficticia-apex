@@ -3,11 +3,13 @@ import io
 import os
 import re
 import zipfile
+import hashlib
+from db import verify_password as _verify_password
 from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, Response)
 from config import SECRET_KEY
-from db import get_db, hash_password
+from db import get_db, hash_password, verify_password
 import validators as v
 
 app = Flask(__name__)
@@ -85,7 +87,7 @@ def login():
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         conn.close()
-        if user and user["password_hash"] == hash_password(password):
+        if user and verify_password(password, user["password_hash"]):
             session["user"] = user["email"]
             session["role"] = user["role"]
             return redirect(url_for("home"))
@@ -383,6 +385,38 @@ def lab_compress():
     files = sorted(os.listdir(REPORTS_DIR))
     return render_template("lab_compress.html", cmd=cmd_shown, output=output, error=error,
                            files=files, vulnerable=False)
+
+
+# =====================================================================
+# LABORATORIO FASE II-A: comparación SHA-256 simple (inseguro) vs Argon2id
+# (lo que ahora usa la aplicación). Ningún valor de aquí se guarda en la
+# base de datos; es solo para evidenciar la diferencia.
+# =====================================================================
+@app.route("/lab/password", methods=["GET", "POST"])
+@login_required
+def lab_password():
+    result = None
+    if request.method == "POST":
+        pwd = request.form.get("password", "")
+        # SHA-256 simple: sin sal, siempre produce el mismo resultado.
+        sha_1 = hashlib.sha256(pwd.encode()).hexdigest()
+        sha_2 = hashlib.sha256(pwd.encode()).hexdigest()
+        # Argon2id: cada llamada genera una sal aleatoria nueva, codificada
+        # dentro del propio hash (ver los campos entre '$').
+        argon_1 = hash_password(pwd)
+        argon_2 = hash_password(pwd)
+        import time
+        t0 = time.perf_counter(); hashlib.sha256(pwd.encode()).hexdigest(); t_sha = time.perf_counter() - t0
+        t0 = time.perf_counter(); hash_password(pwd); t_argon = time.perf_counter() - t0
+        result = {
+            "pwd": pwd,
+            "sha_1": sha_1, "sha_2": sha_2, "sha_igual": sha_1 == sha_2,
+            "argon_1": argon_1, "argon_2": argon_2, "argon_igual": argon_1 == argon_2,
+            "t_sha": round(t_sha * 1000, 3), "t_argon": round(t_argon * 1000, 1),
+            "verifica_ok": _verify_password(pwd, argon_1),
+            "verifica_mal": _verify_password(pwd + "x", argon_1),
+        }
+    return render_template("lab_password.html", result=result)
 
 
 if __name__ == "__main__":

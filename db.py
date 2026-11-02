@@ -1,6 +1,13 @@
 import sqlite3
-import hashlib
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, InvalidHashError
 from config import DB_PATH
+
+# CORREGIDO (Fase II-A): Argon2id en vez de SHA-256 simple.
+# Argon2id es una Key Derivation Function: lenta a propósito, usa memoria
+# además de CPU (dificulta ataques con GPU/ASIC) y genera una sal aleatoria
+# distinta por cada hash, incluida automáticamente dentro del propio hash.
+_ph = PasswordHasher()  # parámetros por defecto: tiempo, memoria y paralelismo
 
 
 def get_db():
@@ -10,8 +17,18 @@ def get_db():
 
 
 def hash_password(password):
-    # DÉBIL A PROPÓSITO (SHA-256 simple, sin sal): se reemplaza en Fase II-A.
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Genera un hash Argon2id del password. La sal se genera sola y queda
+    codificada dentro del propio hash (no se guarda en una columna aparte)."""
+    return _ph.hash(password)
+
+
+def verify_password(password, stored_hash):
+    """Verifica un password contra un hash Argon2id. Devuelve True/False y
+    nunca compara cadenas directamente (evita ataques de temporización)."""
+    try:
+        return _ph.verify(stored_hash, password)
+    except (VerifyMismatchError, InvalidHashError, ValueError):
+        return False
 
 
 CARRERAS = [
