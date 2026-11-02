@@ -5,6 +5,7 @@ from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, Response)
 from config import SECRET_KEY
 from db import get_db, hash_password
+import validators as v
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -38,6 +39,9 @@ def register():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
+        if not v.valid_email(email) or not v.valid_password(password):
+            flash("Correo inválido o contraseña débil (mín. 8 caracteres, letras y números).", "error")
+            return render_template("register.html")
         conn = get_db()
         try:
             conn.execute("INSERT INTO users (email, password_hash) VALUES (?,?)",
@@ -46,7 +50,7 @@ def register():
             flash("Usuario registrado. Inicia sesión.")
             return redirect(url_for("login"))
         except Exception:
-            flash("No se pudo registrar el usuario.")
+            flash("No se pudo registrar el usuario.", "error")
         finally:
             conn.close()
     return render_template("register.html")
@@ -57,6 +61,9 @@ def login():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
+        if not v.valid_email(email) or len(password) > 128:
+            flash("Credenciales incorrectas.", "error")
+            return render_template("login.html")
         conn = get_db()
         user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         conn.close()
@@ -64,7 +71,7 @@ def login():
             session["user"] = user["email"]
             session["role"] = user["role"]
             return redirect(url_for("home"))
-        flash("Credenciales incorrectas.")
+        flash("Credenciales incorrectas.", "error")
     return render_template("login.html")
 
 
@@ -79,6 +86,9 @@ def logout():
 def search():
     q = request.args.get("q", "")
     results = []
+    if q and not v.valid_search(q):
+        flash("Parámetro de búsqueda inválido.", "error")
+        return render_template("search.html", q="", results=[])
     if q:
         conn = get_db()
         like = f"%{q}%"
@@ -92,6 +102,9 @@ def search():
 @app.route("/expediente/<student_id>")
 @login_required
 def expediente(student_id):
+    if not v.valid_student_id(student_id):
+        flash("Identificador de estudiante inválido.", "error")
+        return redirect(url_for("students"))
     conn = get_db()
     student = conn.execute(
         "SELECT s.*, se.name AS sede, ca.name AS carrera FROM students s "
@@ -108,7 +121,9 @@ def expediente(student_id):
 @login_required
 def comments():
     conn = get_db()
-    if request.method == "POST":
+    if request.method == "POST" and not v.valid_comment(request.form["body"]):
+        flash("Comentario vacío o demasiado largo (máx. 500 caracteres).", "error")
+    elif request.method == "POST":
         conn.execute("INSERT INTO comments (author, body) VALUES (?,?)",
                      (session["user"], request.form["body"]))
         conn.commit()
@@ -120,8 +135,8 @@ def comments():
 @app.route("/students")
 @login_required
 def students():
-    sede = request.args.get("sede", "")
-    carrera = request.args.get("carrera", "")
+    sede = v.int_param(request.args.get("sede", ""))
+    carrera = v.int_param(request.args.get("carrera", ""))
     conn = get_db()
     sedes = conn.execute("SELECT * FROM sedes ORDER BY name").fetchall()
     carreras = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
@@ -129,17 +144,16 @@ def students():
            "se.name AS sede, ca.name AS carrera FROM students s "
            "LEFT JOIN sedes se ON s.sede_id = se.id LEFT JOIN carreras ca ON s.carrera_id = ca.id")
     where, params = [], []
-    if sede.isdigit():
-        where.append("s.sede_id = ?"); params.append(int(sede))
-    if carrera.isdigit():
-        where.append("s.carrera_id = ?"); params.append(int(carrera))
+    if sede is not None:
+        where.append("s.sede_id = ?"); params.append(sede)
+    if carrera is not None:
+        where.append("s.carrera_id = ?"); params.append(carrera)
     if where:
         sql += " WHERE " + " AND ".join(where)
     rows = conn.execute(sql + " ORDER BY s.last_name, s.first_name", params).fetchall()
     conn.close()
     return render_template("students.html", students=rows, sedes=sedes, carreras=carreras,
-                           sede=int(sede) if sede.isdigit() else None,
-                           carrera=int(carrera) if carrera.isdigit() else None)
+                           sede=sede, carrera=carrera)
 
 
 @app.route("/sedes")
@@ -178,19 +192,18 @@ def carrera(carrera_id):
 @app.route("/courses")
 @login_required
 def courses():
-    carrera = request.args.get("carrera", "")
+    carrera = v.int_param(request.args.get("carrera", ""))
     conn = get_db()
     carreras = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
     sql = ("SELECT c.code, c.name, c.ciclo, ca.name AS carrera, COUNT(g.id) AS inscritos, "
            "ROUND(AVG(g.grade), 1) AS promedio FROM courses c JOIN carreras ca ON c.carrera_id = ca.id "
            "LEFT JOIN grades g ON g.course = c.name")
     params = []
-    if carrera.isdigit():
-        sql += " WHERE c.carrera_id = ?"; params.append(int(carrera))
+    if carrera is not None:
+        sql += " WHERE c.carrera_id = ?"; params.append(carrera)
     rows = conn.execute(sql + " GROUP BY c.id ORDER BY ca.name, c.ciclo, c.name", params).fetchall()
     conn.close()
-    return render_template("courses.html", courses=rows, carreras=carreras,
-                           carrera=int(carrera) if carrera.isdigit() else None)
+    return render_template("courses.html", courses=rows, carreras=carreras, carrera=carrera)
 
 
 @app.route("/admin", methods=["GET", "POST"])
@@ -202,22 +215,37 @@ def admin():
     try:
         if request.method == "POST":
             form = request.form.get("form")
-            try:
-                if form == "student":
-                    conn.execute("INSERT INTO students (student_id, first_name, last_name, email, sede_id, carrera_id, ciclo) "
-                                 "VALUES (?,?,?,?,?,?,?)",
-                                 (request.form["student_id"], request.form["first_name"], request.form["last_name"],
-                                  request.form["email"], request.form["sede_id"], request.form["carrera_id"],
-                                  request.form["ciclo"]))
-                    conn.commit()
-                    flash("Estudiante agregado.")
-                elif form == "grade":
-                    conn.execute("INSERT INTO grades (student_id, course, grade) VALUES (?,?,?)",
-                                 (request.form["student_id"], request.form["course"], request.form["grade"]))
+            if form == "student":
+                sid, fn, ln, em = (request.form.get(k, "") for k in ("student_id", "first_name", "last_name", "email"))
+                sede_id = v.int_param(request.form.get("sede_id", ""))
+                carrera_id = v.int_param(request.form.get("carrera_id", ""))
+                ciclo = v.valid_ciclo(request.form.get("ciclo", ""))
+                sede_ok = sede_id is not None and conn.execute("SELECT 1 FROM sedes WHERE id = ?", (sede_id,)).fetchone()
+                carrera_ok = carrera_id is not None and conn.execute("SELECT 1 FROM carreras WHERE id = ?", (carrera_id,)).fetchone()
+                if not (v.valid_student_id(sid) and v.valid_name(fn) and v.valid_name(ln) and v.valid_email(em)
+                        and sede_ok and carrera_ok and ciclo):
+                    flash("Datos de estudiante inválidos.", "error")
+                else:
+                    try:
+                        conn.execute("INSERT INTO students (student_id, first_name, last_name, email, sede_id, carrera_id, ciclo) "
+                                     "VALUES (?,?,?,?,?,?,?)", (sid, fn, ln, em, sede_id, carrera_id, ciclo))
+                        conn.commit()
+                        flash("Estudiante agregado.")
+                    except Exception:
+                        flash("No se pudo guardar el registro.", "error")
+            elif form == "grade":
+                sid = request.form.get("student_id", "")
+                course = request.form.get("course", "")
+                grade = v.valid_grade(request.form.get("grade"))
+                ok = (v.valid_student_id(sid) and v.valid_name(course) and grade is not None
+                      and conn.execute("SELECT 1 FROM students WHERE student_id = ?", (sid,)).fetchone()
+                      and conn.execute("SELECT 1 FROM courses WHERE name = ?", (course,)).fetchone())
+                if not ok:
+                    flash("Datos de calificación inválidos (estudiante y curso existentes, nota entre 0 y 100).", "error")
+                else:
+                    conn.execute("INSERT INTO grades (student_id, course, grade) VALUES (?,?,?)", (sid, course, grade))
                     conn.commit()
                     flash("Calificación agregada.")
-            except Exception:
-                flash("No se pudo guardar el registro.")
         sedes_rows = conn.execute("SELECT * FROM sedes ORDER BY name").fetchall()
         carreras_rows = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
     finally:

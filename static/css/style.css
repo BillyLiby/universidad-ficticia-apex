@@ -118,3 +118,5 @@ select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px #D3EED
 .ciclo-title h2{margin:0}
 .filters{display:grid;gap:4px;margin-bottom:8px}
 .filters .count{margin:8px 0 4px}
+
+.notice.error{border-left-color:var(--danger);background:#FDECEA;color:#7A1A12}

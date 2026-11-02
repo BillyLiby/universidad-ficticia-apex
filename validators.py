@@ -45,3 +45,19 @@ def valid_password(value):
 
 def valid_comment(value):
     return isinstance(value, str) and 1 <= len(value.strip()) <= 500
+
+
+INT_PARAM_RE = re.compile(r"^[0-9]{1,9}$")
+
+
+def int_param(value):
+    """Convierte un parámetro numérico (id de sede/carrera) a int, o None si no es válido.
+    Solo dígitos ASCII 0-9: evita casos como '²' que isdigit() acepta pero int() rechaza."""
+    if isinstance(value, str) and INT_PARAM_RE.match(value):
+        return int(value)
+    return None
+
+
+def valid_ciclo(value):
+    n = int_param(value)
+    return n if n is not None and 1 <= n <= 10 else None
