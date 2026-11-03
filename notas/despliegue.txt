@@ -1,2 +1,0 @@
-Notas internas de despliegue.
-AWS_ACCESS_KEY_ID=AKIAHBRPOIGF3CBFNOBM
