@@ -8,9 +8,11 @@ from db import verify_password as _verify_password
 from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, Response)
+from werkzeug.exceptions import HTTPException
 from config import SECRET_KEY
 from db import get_db, hash_password, verify_password
 from crypto_utils import encrypt_field, decrypt_field
+import security_log
 import validators as v
 
 app = Flask(__name__)
@@ -30,6 +32,23 @@ def security_headers(resp):
         "object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
     resp.headers["X-Content-Type-Options"] = "nosniff"
     return resp
+
+
+@app.errorhandler(Exception)
+def handle_error(e):
+    if isinstance(e, HTTPException):
+        # Respuestas normales de Flask (404, 403, etc.): no son errores
+        # internos, se dejan pasar sin registrarlas como incidente.
+        return e
+    # Se registra internamente el TIPO de error (útil para depurar), pero
+    # nunca su mensaje completo: un mensaje de error de base de datos, por
+    # ejemplo, podría llegar a incluir una ruta de archivo, una consulta
+    # SQL o, en otros sistemas, hasta credenciales de conexión.
+    security_log.log_event("app_error", actor=session.get("user"), outcome="error",
+                           error_type=type(e).__name__, ip=request.remote_addr)
+    # Al usuario se le muestra un mensaje genérico, nunca la traza ni el
+    # detalle técnico del error.
+    return render_template("error.html"), 500
 
 
 def login_required(f):
@@ -91,7 +110,13 @@ def login():
         if user and verify_password(password, user["password_hash"]):
             session["user"] = user["email"]
             session["role"] = user["role"]
+            security_log.log_event("login_success", actor=user["email"],
+                                   outcome="success", ip=request.remote_addr)
             return redirect(url_for("home"))
+        # No se registra la contraseña, solo el correo intentado (útil para
+        # detectar intentos repetidos contra una misma cuenta).
+        security_log.log_event("login_failed", actor=email, outcome="failed",
+                               ip=request.remote_addr)
         flash("Credenciales incorrectas.", "error")
     return render_template("login.html")
 
@@ -132,6 +157,8 @@ def expediente(student_id):
         "LEFT JOIN sedes se ON s.sede_id = se.id LEFT JOIN carreras ca ON s.carrera_id = ca.id "
         "WHERE s.student_id = ?", (student_id,)).fetchone()
     phone = decrypt_field(student["phone_encrypted"]) if student else None
+    security_log.log_event("expediente_view", actor=session.get("user"), target=student_id,
+                           outcome="success" if student else "not_found", ip=request.remote_addr)
     grades = conn.execute(
         "SELECT g.course, g.grade, c.code, c.ciclo FROM grades g LEFT JOIN courses c ON c.name = g.course "
         "WHERE g.student_id = ? ORDER BY c.ciclo, g.course", (student_id,)).fetchall()
@@ -232,7 +259,11 @@ def courses():
 @login_required
 def admin():
     if session.get("role") != "admin":
+        security_log.log_event("admin_access", actor=session.get("user"), outcome="denied",
+                               ip=request.remote_addr)
         return "Acceso denegado", 403
+    security_log.log_event("admin_access", actor=session.get("user"), outcome="success",
+                           ip=request.remote_addr)
     conn = get_db()
     try:
         if request.method == "POST":
@@ -254,8 +285,14 @@ def admin():
                                      "sede_id, carrera_id, ciclo) VALUES (?,?,?,?,?,?,?,?)",
                                      (sid, fn, ln, em, encrypt_field(phone), sede_id, carrera_id, ciclo))
                         conn.commit()
+                        security_log.log_event("student_created", actor=session.get("user"),
+                                               target=sid, outcome="success",
+                                               ip=request.remote_addr)
                         flash("Estudiante agregado.")
                     except Exception:
+                        security_log.log_event("student_created", actor=session.get("user"),
+                                               target=sid, outcome="error",
+                                               ip=request.remote_addr)
                         flash("No se pudo guardar el registro.", "error")
             elif form == "grade":
                 sid = request.form.get("student_id", "")
@@ -265,10 +302,14 @@ def admin():
                       and conn.execute("SELECT 1 FROM students WHERE student_id = ?", (sid,)).fetchone()
                       and conn.execute("SELECT 1 FROM courses WHERE name = ?", (course,)).fetchone())
                 if not ok:
+                    security_log.log_event("grade_added", actor=session.get("user"), target=sid,
+                                           outcome="rejected", ip=request.remote_addr)
                     flash("Datos de calificación inválidos (estudiante y curso existentes, nota entre 0 y 100).", "error")
                 else:
                     conn.execute("INSERT INTO grades (student_id, course, grade) VALUES (?,?,?)", (sid, course, grade))
                     conn.commit()
+                    security_log.log_event("grade_added", actor=session.get("user"), target=sid,
+                                           outcome="success", course=course, ip=request.remote_addr)
                     flash("Calificación agregada.")
         sedes_rows = conn.execute("SELECT * FROM sedes ORDER BY name").fetchall()
         carreras_rows = conn.execute("SELECT * FROM carreras ORDER BY name").fetchall()
@@ -447,6 +488,44 @@ def lab_crypto():
                 "manipulado": manipulado, "resultado_manipulado": resultado_manipulado,
             }
     return render_template("lab_crypto.html", result=result)
+
+
+# =====================================================================
+# LABORATORIO FASE II-E: comparación de un registro inseguro (ejemplo,
+# NUNCA se escribe así) contra el registro seguro que la aplicación
+# realmente genera, y visor de las últimas entradas reales.
+# =====================================================================
+EJEMPLOS_INSEGUROS = [
+    {
+        "titulo": "Inicio de sesión",
+        "malo": 'INFO Login attempt: email=admin@uni.test password=Admin123 '
+               'success=True session_token=eyJhbGciOiJIUzI1NiJ9.MnoE...',
+        "bueno": '{"event": "login_success", "actor": "admin@uni.test", '
+                '"outcome": "success", "ip": "127.0.0.1"}',
+    },
+    {
+        "titulo": "Alta de estudiante",
+        "malo": 'INFO Estudiante creado: id=2026009 nombre=Rosa Diaz '
+               'telefono=55019999 correo=rosa@uni.test por admin@uni.test',
+        "bueno": '{"event": "student_created", "actor": "admin@uni.test", '
+                '"target": "2026009", "outcome": "success"}',
+    },
+    {
+        "titulo": "Error interno",
+        "malo": 'ERROR sqlite3.OperationalError: no such table: students '
+               '(ruta: C:\\Users\\velas\\...\\portal.db, '
+               'DB_PASSWORD=Lab-Password-Ficticia-2026)',
+        "bueno": '{"event": "app_error", "outcome": "error", '
+                '"error_type": "OperationalError"}',
+    },
+]
+
+
+@app.route("/lab/logging")
+@login_required
+def lab_logging():
+    recientes = list(reversed(security_log.read_recent(20)))
+    return render_template("lab_logging.html", ejemplos=EJEMPLOS_INSEGUROS, recientes=recientes)
 
 
 if __name__ == "__main__":

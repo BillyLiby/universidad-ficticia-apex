@@ -5,3 +5,4 @@ reports/*
 !reports/.gitkeep
 report.csv
 .env
+logs/

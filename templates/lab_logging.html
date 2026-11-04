@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Laboratorio registros{% endblock %}{% block content %}
+<h1>Laboratorio: registro seguro (secure logging)</h1>
+<div class="lab-banner lab-ok">Los ejemplos "inseguros" son solo ilustrativos; la aplicación nunca registra así.</div>
+
+<h2>Registro inseguro vs. registro seguro</h2>
+{% for ej in ejemplos %}
+<p class="count">{{ ej.titulo }}</p>
+<div class="panel" style="margin-bottom:8px">
+  <p class="hint">Inseguro (NO hacer esto):</p>
+  <pre class="sqlbox" style="background:#3a1414">{{ ej.malo }}</pre>
+  <p class="hint">Seguro (lo que la aplicación realmente escribe):</p>
+  <pre class="sqlbox">{{ ej.bueno }}</pre>
+</div>
+{% endfor %}
+
+<h2>Últimas entradas reales del registro de seguridad</h2>
+<div class="table-wrap"><table><thead><tr><th>Entrada (JSON)</th></tr></thead>
+<tbody>{% for linea in recientes %}<tr><td style="font-family:monospace;font-size:13px">{{ linea }}</td></tr>
+{% else %}<tr><td class="empty">Aún no hay entradas.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}
